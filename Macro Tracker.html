@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Macro Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #222;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f0; --muted: #888;
+    --prot: #4a9eff; --carbs: #f5a623; --fat: #4caf7d;
+    --accent: #4a9eff; --danger: #ff5555;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: env(safe-area-inset-top,16px) 0 env(safe-area-inset-bottom,16px); }
+  .app { max-width: 480px; margin: 0 auto; padding: 0 16px 80px; }
+
+  .header { padding: 20px 0 12px; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; }
+  .date-tag { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; background: var(--surface); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; }
+
+  .day-nav { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; scrollbar-width: none; }
+  .day-nav::-webkit-scrollbar { display: none; }
+  .day-btn { flex-shrink: 0; font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .day-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+
+  .setup-banner { background: #1a2a1a; border: 1px solid #2a4a2a; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .setup-banner h3 { font-size: 14px; font-weight: 600; color: var(--fat); margin-bottom: 8px; }
+  .setup-banner p { font-size: 12px; color: #aaa; margin-bottom: 12px; line-height: 1.6; }
+  .setup-banner a { color: var(--prot); }
+  .key-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; padding: 10px 12px; outline: none; margin-bottom: 8px; -webkit-appearance: none; }
+  .key-input::placeholder { color: var(--muted); }
+  .save-key-btn { width: 100%; background: var(--fat); border: none; border-radius: 10px; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; padding: 11px; cursor: pointer; }
+  .save-key-btn:active { opacity: 0.8; }
+
+  .macros-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 14px; }
+  .macro-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 8px; text-align: center; }
+  .macro-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .macro-value { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; line-height: 1; }
+  .macro-unit { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .macro-card.prot .macro-value { color: var(--prot); }
+  .macro-card.carbs .macro-value { color: var(--carbs); }
+  .macro-card.fat .macro-value { color: var(--fat); }
+
+  .prot-bar-wrap { margin-bottom: 16px; }
+  .prot-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .prot-bar-track { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .prot-bar-fill { height: 100%; background: var(--prot); border-radius: 3px; transition: width 0.5s ease; }
+
+  .input-wrap { display: flex; gap: 8px; margin-bottom: 10px; }
+  .food-input { flex: 1; background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; padding: 12px 14px; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+  .food-input:focus { border-color: var(--accent); }
+  .food-input::placeholder { color: var(--muted); }
+  .add-btn { background: var(--accent); border: none; border-radius: 12px; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 22px; padding: 0 18px; cursor: pointer; transition: opacity 0.15s; flex-shrink: 0; }
+  .add-btn:active { opacity: 0.7; }
+  .add-btn:disabled { opacity: 0.4; }
+  .loading { font-size: 13px; color: var(--muted); padding: 4px 0 10px; text-align: center; display: none; }
+
+  .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .log-title { font-size: 13px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .clear-btn { font-size: 12px; color: var(--danger); background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 4px 0; }
+  .log { display: flex; flex-direction: column; gap: 8px; }
+  .log-item { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+  .log-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+  .log-item-name { font-size: 14px; font-weight: 500; line-height: 1.3; }
+  .log-item-qty { font-size: 12px; color: var(--muted); }
+  .log-item-cal { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; white-space: nowrap; flex-shrink: 0; }
+  .log-item-macros { display: flex; gap: 12px; }
+  .macro-pill { font-size: 12px; }
+  .macro-pill span { font-weight: 600; }
+  .macro-pill.p span { color: var(--prot); }
+  .macro-pill.c span { color: var(--carbs); }
+  .macro-pill.f span { color: var(--fat); }
+  .log-item-note { font-size: 11px; color: var(--muted); margin-top: 6px; font-style: italic; }
+  .delete-item { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 0 0 8px; flex-shrink: 0; line-height: 1; }
+  .empty-state { text-align: center; padding: 32px 0; color: var(--muted); font-size: 14px; }
+
+  .bottom-section { margin-top: 24px; display: flex; flex-direction: column; gap: 0; }
+  .toggle-row { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; cursor: pointer; margin-bottom: 8px; }
+  .toggle-row.open { border-radius: 12px 12px 0 0; margin-bottom: 0; border-bottom-color: transparent; }
+  .toggle-row-label { font-size: 13px; color: var(--muted); }
+  .toggle-row-arrow { font-size: 11px; color: var(--muted); transition: transform 0.2s; }
+  .toggle-row-arrow.open { transform: rotate(180deg); }
+  .collapsible { display: none; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; padding: 14px; margin-bottom: 8px; }
+  .collapsible.open { display: block; }
+  .field-label { font-size: 11px; color: var(--muted); margin-bottom: 5px; margin-top: 12px; }
+  .field-label:first-child { margin-top: 0; }
+  .small-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; padding: 9px 10px; outline: none; -webkit-appearance: none; }
+  .small-input::placeholder { color: var(--muted); }
+  .goal-input { width: 90px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 14px; padding: 7px 10px; outline: none; }
+  .sheets-btn { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; padding: 12px; cursor: pointer; margin-top: 12px; }
+  .sheets-btn:active { opacity: 0.7; }
+  .sheets-status { font-size: 12px; text-align: center; margin-top: 8px; min-height: 18px; }
+  .sheets-status.ok { color: var(--fat); }
+  .sheets-status.err { color: var(--danger); }
+  .change-key-btn { font-size: 12px; color: var(--prot); background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 0; display: block; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-top">
+      <div class="title">Mis Macros</div>
+      <div id="date-tag" class="date-tag"></div>
+    </div>
+    <div class="day-nav" id="day-nav"></div>
+  </div>
+
+  <div class="setup-banner" id="setup-banner" style="display:none;">
+    <h3>Primero: configurá tu API Key gratuita</h3>
+    <p>
+      1. Entrá a <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> con tu cuenta Google<br>
+      2. Clic en <strong>Get API Key</strong> → <strong>Create API Key</strong><br>
+      3. Copiá la clave y pegala acá:
+    </p>
+    <input class="key-input" type="text" id="setup-key-input" placeholder="AIzaSy...">
+    <button class="save-key-btn" onclick="saveSetupKey()">Guardar y empezar</button>
+  </div>
+
+  <div class="macros-grid">
+    <div class="macro-card cal">
+      <div class="macro-label">Calorías</div>
+      <div class="macro-value" id="tot-cal">0</div>
+      <div class="macro-unit">kcal</div>
+    </div>
+    <div class="macro-card prot">
+      <div class="macro-label">Proteína</div>
+      <div class="macro-value" id="tot-prot">0</div>
+      <div class="macro-unit">g</div>
+    </div>
+    <div class="macro-card carbs">
+      <div class="macro-label">Carbos</div>
+      <div class="macro-value" id="tot-carbs">0</div>
+      <div class="macro-unit">g</div>
+    </div>
+    <div class="macro-card fat">
+      <div class="macro-label">Grasas</div>
+      <div class="macro-value" id="tot-fat">0</div>
+      <div class="macro-unit">g</div>
+    </div>
+  </div>
+
+  <div class="prot-bar-wrap">
+    <div class="prot-bar-label">
+      <span>Objetivo proteína</span>
+      <span id="prot-goal-label">0 / 150g</span>
+    </div>
+    <div class="prot-bar-track"><div class="prot-bar-fill" id="prot-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="input-wrap">
+    <input class="food-input" type="text" id="food-input" placeholder="Ej: 200g pechuga, 1 banana, 3 huevos...">
+    <button class="add-btn" id="add-btn" onclick="addFood()">+</button>
+  </div>
+  <div class="loading" id="loading">⏳ Calculando macros...</div>
+
+  <div class="log-header">
+    <div class="log-title">Registro del día</div>
+    <button class="clear-btn" onclick="clearDay()">Borrar todo</button>
+  </div>
+  <div class="log" id="log"></div>
+  <div class="empty-state" id="empty-state">Todavía no cargaste nada hoy.</div>
+
+  <div class="bottom-section">
+
+    <div class="toggle-row" id="settings-toggle" onclick="toggleSection('settings-body','settings-arrow','settings-toggle')">
+      <span class="toggle-row-label">⚙ Configuración</span>
+      <span class="toggle-row-arrow" id="settings-arrow">▼</span>
+    </div>
+    <div class="collapsible" id="settings-body">
+      <div class="field-label">Objetivo diario de proteína (g)</div>
+      <input class="goal-input" type="number" id="goal-input" value="150" min="50" max="400" onchange="saveGoal()">
+      <div class="field-label" style="margin-top:14px;">API Key de Gemini</div>
+      <div id="key-display" style="font-size:13px; color:var(--muted); font-family:'DM Mono',monospace; word-break:break-all;"></div>
+      <button class="change-key-btn" onclick="changeKey()">Cambiar clave</button>
+    </div>
+
+    <div class="toggle-row" id="sheets-toggle" onclick="toggleSection('sheets-body','sheets-arrow','sheets-toggle')">
+      <span class="toggle-row-label">📊 Enviar a Google Sheets</span>
+      <span class="toggle-row-arrow" id="sheets-arrow">▼</span>
+    </div>
+    <div class="collapsible" id="sheets-body">
+      <div class="field-label">URL del Google Apps Script</div>
+      <input class="small-input" type="url" id="sheets-url" placeholder="https://script.google.com/macros/s/..." oninput="saveSheetUrl()">
+      <button class="sheets-btn" onclick="sendToSheets()">Guardar hoy en Sheets</button>
+      <div class="sheets-status" id="sheets-status"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+let currentDay = new Date().toISOString().slice(0,10);
+let allData = JSON.parse(localStorage.getItem('macro_all') || '{}');
+let protGoal = parseInt(localStorage.getItem('prot_goal') || '150');
+
+function getItems(d) { return allData[d] || []; }
+function saveItems(d, items) { allData[d] = items; localStorage.setItem('macro_all', JSON.stringify(allData)); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('goal-input').value = protGoal;
+  document.getElementById('sheets-url').value = localStorage.getItem('sheets_url') || '';
+  const key = localStorage.getItem('gemini_key') || '';
+  if (!key) {
+    document.getElementById('setup-banner').style.display = 'block';
+  }
+  updateKeyDisplay(key);
+  renderDateTag();
+  renderDayNav();
+  renderLog();
+  document.getElementById('food-input').addEventListener('keydown', e => { if(e.key==='Enter') addFood(); });
+});
+
+function updateKeyDisplay(key) {
+  const el = document.getElementById('key-display');
+  el.textContent = key ? (key.slice(0,8) + '•••••••••••••••' + key.slice(-4)) : 'No configurada';
+}
+
+function saveSetupKey() {
+  const key = document.getElementById('setup-key-input').value.trim();
+  if (!key) { alert('Pegá tu API key primero.'); return; }
+  localStorage.setItem('gemini_key', key);
+  document.getElementById('setup-banner').style.display = 'none';
+  updateKeyDisplay(key);
+}
+
+function changeKey() {
+  const newKey = prompt('Pegá tu nueva API Key de Gemini:');
+  if (newKey && newKey.trim()) {
+    localStorage.setItem('gemini_key', newKey.trim());
+    updateKeyDisplay(newKey.trim());
+  }
+}
+
+function toggleSection(bodyId, arrowId, toggleId) {
+  const body = document.getElementById(bodyId);
+  const arrow = document.getElementById(arrowId);
+  const toggle = document.getElementById(toggleId);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+  toggle.classList.toggle('open', !isOpen);
+}
+
+function renderDateTag() {
+  document.getElementById('date-tag').textContent = new Date().toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'});
+}
+
+function renderDayNav() {
+  const nav = document.getElementById('day-nav');
+  nav.innerHTML = '';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const day = d.toISOString().slice(0,10);
+    const btn = document.createElement('button');
+    btn.className = 'day-btn' + (day === currentDay ? ' active' : '');
+    btn.textContent = i === 0 ? 'Hoy' : new Date(day+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric'});
+    btn.onclick = () => { currentDay = day; renderDayNav(); renderLog(); };
+    nav.appendChild(btn);
+  }
+}
+
+function renderLog() {
+  const items = getItems(currentDay);
+  const log = document.getElementById('log');
+  log.innerHTML = '';
+  document.getElementById('empty-state').style.display = items.length ? 'none' : 'block';
+  items.forEach((item, idx) => {
+    const el = document.createElement('div');
+    el.className = 'log-item';
+    el.innerHTML = `
+      <div class="log-item-top">
+        <div>
+          <div class="log-item-name">${item.nombre}</div>
+          <div class="log-item-qty">${item.cantidad}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div class="log-item-cal">${item.calorias} kcal</div>
+          <button class="delete-item" onclick="deleteItem(${idx})">×</button>
+        </div>
+      </div>
+      <div class="log-item-macros">
+        <div class="macro-pill p"><span>${item.proteinas}g</span> prot</div>
+        <div class="macro-pill c"><span>${item.carbohidratos}g</span> carbos</div>
+        <div class="macro-pill f"><span>${item.grasas}g</span> grasas</div>
+      </div>
+      ${item.nota ? '<div class="log-item-note">'+item.nota+'</div>' : ''}`;
+    log.appendChild(el);
+  });
+  updateTotals(items);
+}
+
+function updateTotals(items) {
+  const t = items.reduce((a,i)=>({cal:a.cal+(i.calorias||0),prot:a.prot+(i.proteinas||0),carbs:a.carbs+(i.carbohidratos||0),fat:a.fat+(i.grasas||0)}),{cal:0,prot:0,carbs:0,fat:0});
+  document.getElementById('tot-cal').textContent = t.cal;
+  document.getElementById('tot-prot').textContent = t.prot;
+  document.getElementById('tot-carbs').textContent = t.carbs;
+  document.getElementById('tot-fat').textContent = t.fat;
+  document.getElementById('prot-goal-label').textContent = t.prot+' / '+protGoal+'g';
+  document.getElementById('prot-bar').style.width = Math.min(100,Math.round(t.prot/protGoal*100))+'%';
+}
+
+function deleteItem(idx) {
+  const items = getItems(currentDay);
+  items.splice(idx,1);
+  saveItems(currentDay,items);
+  renderLog();
+}
+
+function clearDay() {
+  if (!confirm('¿Borrar todo el registro de hoy?')) return;
+  saveItems(currentDay,[]);
+  renderLog();
+}
+
+async function addFood() {
+  const input = document.getElementById('food-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const apiKey = localStorage.getItem('gemini_key') || '';
+  if (!apiKey) {
+    document.getElementById('setup-banner').style.display = 'block';
+    document.getElementById('setup-banner').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  input.value = '';
+  input.disabled = true;
+  document.getElementById('add-btn').disabled = true;
+  document.getElementById('loading').style.display = 'block';
+  try {
+    const res = await fetch(GEMINI_API+'?key='+apiKey, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{parts:[{text:'Sos nutricionista experto. El usuario ingreso: "'+text+'".\nDevolvé SOLO JSON valido (sin markdown, sin texto extra):\n{"items":[{"nombre":"nombre","cantidad":"cantidad y unidad","calorias":0,"proteinas":0,"carbohidratos":0,"grasas":0}],"nota":"comentario breve o null"}\nNumeros enteros. Si hay varios alimentos, listalos por separado en el array.'}]}],
+        generationConfig:{temperature:0.1}
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const raw = data.candidates[0].content.parts[0].text;
+    const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const items = getItems(currentDay);
+    parsed.items.forEach(item => items.push({...item, nota:parsed.nota||null}));
+    saveItems(currentDay,items);
+    renderLog();
+  } catch(e) {
+    alert('Error al calcular macros: '+e.message);
+  }
+  document.getElementById('loading').style.display = 'none';
+  input.disabled = false;
+  document.getElementById('add-btn').disabled = false;
+  input.focus();
+}
+
+function saveGoal() {
+  protGoal = parseInt(document.getElementById('goal-input').value) || 150;
+  localStorage.setItem('prot_goal', protGoal);
+  renderLog();
+}
+function saveSheetUrl() {
+  localStorage.setItem('sheets_url', document.getElementById('sheets-url').value.trim());
+}
+async function sendToSheets() {
+  const url = localStorage.getItem('sheets_url') || '';
+  if (!url) { alert('Pega la URL del Apps Script primero.'); return; }
+  const items = getItems(currentDay);
+  if (!items.length) { alert('No hay nada cargado hoy.'); return; }
+  const status = document.getElementById('sheets-status');
+  status.className = 'sheets-status'; status.textContent = 'Enviando...';
+  const totals = items.reduce((a,i)=>({cal:a.cal+(i.calorias||0),prot:a.prot+(i.proteinas||0),carbs:a.carbs+(i.carbohidratos||0),fat:a.fat+(i.grasas||0)}),{cal:0,prot:0,carbs:0,fat:0});
+  try {
+    await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({fecha:currentDay,items,totales:totals})});
+    status.className='sheets-status ok'; status.textContent='Enviado correctamente';
+  } catch(e) {
+    status.className='sheets-status err'; status.textContent='Error: '+e.message;
+  }
+}
+</script>
+</body>
+</html>
